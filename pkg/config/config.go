@@ -130,13 +130,15 @@ func (m AgentModelConfig) MarshalJSON() ([]byte, error) {
 }
 
 type AgentConfig struct {
-	ID        string            `json:"id"`
-	Default   bool              `json:"default,omitempty"`
-	Name      string            `json:"name,omitempty"`
-	Workspace string            `json:"workspace,omitempty"`
-	Model     *AgentModelConfig `json:"model,omitempty"`
-	Skills    []string          `json:"skills,omitempty"`
-	Subagents *SubagentsConfig  `json:"subagents,omitempty"`
+	ID           string            `json:"id"`
+	Default      bool              `json:"default,omitempty"`
+	Name         string            `json:"name,omitempty"`
+	Description  string            `json:"description,omitempty"`
+	Capabilities []string          `json:"capabilities,omitempty"`
+	Workspace    string            `json:"workspace,omitempty"`
+	Model        *AgentModelConfig `json:"model,omitempty"`
+	Skills       []string          `json:"skills,omitempty"`
+	Subagents    *SubagentsConfig  `json:"subagents,omitempty"`
 }
 
 type SubagentsConfig struct {
@@ -204,6 +206,7 @@ type ChannelsConfig struct {
 	WeCom    WeComConfig    `json:"wecom"`
 	WeComApp WeComAppConfig `json:"wecom_app"`
 	Pico     PicoConfig     `json:"pico"`
+	Mesh     MeshConfig     `json:"mesh"`
 }
 
 // GroupTriggerConfig controls when the bot responds in group chats.
@@ -370,6 +373,23 @@ type PicoConfig struct {
 	MaxConnections  int                 `json:"max_connections,omitempty"`
 	AllowFrom       FlexibleStringSlice `json:"allow_from"                  env:"PICOCLAW_CHANNELS_PICO_ALLOW_FROM"`
 	Placeholder     PlaceholderConfig   `json:"placeholder,omitempty"`
+}
+
+type MeshConfig struct {
+	Enabled           bool                `json:"enabled"              env:"PICOCLAW_CHANNELS_MESH_ENABLED"`
+	Token             string              `json:"token"                env:"PICOCLAW_CHANNELS_MESH_TOKEN"`
+	AgentID           string              `json:"agent_id"             env:"PICOCLAW_CHANNELS_MESH_AGENT_ID"`
+	AgentName         string              `json:"agent_name"           env:"PICOCLAW_CHANNELS_MESH_AGENT_NAME"`
+	Description       string              `json:"description"          env:"PICOCLAW_CHANNELS_MESH_DESCRIPTION"`
+	Capabilities      []string            `json:"capabilities,omitempty"`
+	Host              string              `json:"host"                 env:"PICOCLAW_CHANNELS_MESH_HOST"`
+	Port              int                 `json:"port"                 env:"PICOCLAW_CHANNELS_MESH_PORT"`
+	BroadcastPort     int                 `json:"broadcast_port"       env:"PICOCLAW_CHANNELS_MESH_BROADCAST_PORT"`
+	BroadcastInterval int                 `json:"broadcast_interval"   env:"PICOCLAW_CHANNELS_MESH_BROADCAST_INTERVAL"`
+	PeerTTL           int                 `json:"peer_ttl"             env:"PICOCLAW_CHANNELS_MESH_PEER_TTL"`
+	MaxConnections    int                 `json:"max_connections,omitempty"`
+	AllowOrigins      []string            `json:"allow_origins,omitempty"`
+	AllowFrom         FlexibleStringSlice `json:"allow_from"           env:"PICOCLAW_CHANNELS_MESH_ALLOW_FROM"`
 }
 
 type HeartbeatConfig struct {

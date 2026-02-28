@@ -263,6 +263,10 @@ func (m *Manager) initChannels() error {
 		m.initChannel("pico", "Pico")
 	}
 
+	if m.config.Channels.Mesh.Enabled && m.config.Channels.Mesh.Token != "" {
+		m.initChannel("mesh", "Mesh")
+	}
+
 	logger.InfoCF("channels", "Channel initialization completed", map[string]any{
 		"enabled_channels": len(m.channels),
 	})

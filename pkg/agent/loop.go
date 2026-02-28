@@ -20,6 +20,7 @@ import (
 
 	"github.com/sipeed/picoclaw/pkg/bus"
 	"github.com/sipeed/picoclaw/pkg/channels"
+	"github.com/sipeed/picoclaw/pkg/channels/mesh"
 	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/constants"
 	"github.com/sipeed/picoclaw/pkg/logger"
@@ -247,6 +248,14 @@ func (al *AgentLoop) RegisterTool(tool tools.Tool) {
 
 func (al *AgentLoop) SetChannelManager(cm *channels.Manager) {
 	al.channelManager = cm
+
+	if ch, ok := cm.GetChannel("mesh"); ok {
+		if meshCh, ok := ch.(*mesh.MeshChannel); ok {
+			delegator := mesh.NewDelegator(meshCh)
+			al.RegisterTool(tools.NewDelegateTool(delegator))
+			logger.InfoC("agent", "Registered delegate_to_agent tool (mesh channel enabled)")
+		}
+	}
 }
 
 // SetMediaStore injects a MediaStore for media lifecycle management.
