@@ -1,0 +1,68 @@
+# ============================================================
+# Stage 1: Build frontend assets (for launcher webui)
+# ============================================================
+FROM node:24-alpine3.23 AS frontend
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+WORKDIR /src/web/frontend
+COPY web/frontend/package.json web/frontend/pnpm-lock.yaml ./
+RUN CI=true pnpm install --frozen-lockfile
+COPY web/frontend/ ./
+RUN pnpm build:backend
+
+# ============================================================
+# Stage 2: Build static Go binaries (picoclaw + launcher)
+# ============================================================
+FROM golang:1.25-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends git make ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=frontend /src/web/backend/dist web/backend/dist
+
+# make build defaults to CGO_ENABLED=0 -> static binary, portable to runtime stage
+RUN make build
+
+RUN CONFIG_PKG=github.com/sipeed/picoclaw/pkg/config && \
+    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev) && \
+    GIT_COMMIT=$(git rev-parse --short=8 HEAD 2>/dev/null || echo dev) && \
+    BUILD_TIME=$(date +%FT%T%z) && \
+    GO_VERSION=$(go env GOVERSION) && \
+    CGO_ENABLED=0 go build -v -tags goolm,stdjson \
+      -ldflags "-X ${CONFIG_PKG}.Version=${VERSION} -X ${CONFIG_PKG}.GitCommit=${GIT_COMMIT} -X ${CONFIG_PKG}.BuildTime=${BUILD_TIME} -X ${CONFIG_PKG}.GoVersion=${GO_VERSION} -s -w" \
+      -o build/picoclaw-launcher ./web/backend/
+
+# ============================================================
+# Stage 3: Runtime with Go + Node + Python toolchains
+#   (the agent uses these to build/test/run the mounted app)
+# ============================================================
+FROM golang:1.25-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl git python3 python3-pip python3-venv \
+  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
+  && rm -rf /var/lib/apt/lists/*
+
+# uv for fast Python dependency management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    ln -s /root/.local/bin/uv /usr/local/bin/uv && \
+    ln -s /root/.local/bin/uvx /usr/local/bin/uvx && \
+    uv --version
+
+COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
+COPY --from=builder /src/build/picoclaw-launcher /usr/local/bin/picoclaw-launcher
+
+# Create the baseline ~/.picoclaw skeleton; runtime mounts override config.json + workspace
+RUN /usr/local/bin/picoclaw onboard
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:18790/health || exit 1
+
+EXPOSE 18790 18800
+ENTRYPOINT ["picoclaw-launcher"]
+CMD ["-console", "-public", "-no-browser"]
