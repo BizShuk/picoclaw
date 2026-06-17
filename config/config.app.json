@@ -1,0 +1,69 @@
+{
+  "version": 3,
+  "agents": {
+    "defaults": {
+      "workspace": "/root/.picoclaw/workspace",
+      "restrict_to_workspace": true,
+      "model_name": "claude-sonnet-4.6",
+      "max_tokens": 8192,
+      "context_window": 131072,
+      "temperature": 0.7,
+      "max_tool_iterations": 40,
+      "summarize_message_threshold": 20,
+      "summarize_token_percent": 75
+    }
+  },
+  "model_list": [
+    {
+      "model_name": "claude-sonnet-4.6",
+      "model": "anthropic/claude-sonnet-4.6",
+      "api_keys": ["sk-ant-REPLACE-ME"],
+      "api_base": "https://api.anthropic.com/v1",
+      "thinking_level": "high"
+    }
+  ],
+  "channel_list": {
+    "pico": {
+      "enabled": true,
+      "type": "pico",
+      "allow_from": [],
+      "settings": {
+        "token": "",
+        "allow_token_query": true,
+        "allow_origins": ["*"],
+        "ping_interval": 30,
+        "read_timeout": 60,
+        "max_connections": 100
+      }
+    }
+  },
+  "tools": {
+    "allow_read_paths": null,
+    "allow_write_paths": null,
+    "exec": {
+      "enabled": true,
+      "enable_deny_patterns": true,
+      "custom_deny_patterns": null,
+      "custom_allow_patterns": null
+    },
+    "read_file": { "enabled": true, "mode": "bytes" },
+    "write_file": { "enabled": true },
+    "edit_file": { "enabled": true },
+    "append_file": { "enabled": true },
+    "list_dir": { "enabled": true },
+    "message": { "enabled": true },
+    "spawn": { "enabled": true },
+    "subagent": { "enabled": true },
+    "skills": { "enabled": false },
+    "find_skills": { "enabled": false },
+    "install_skill": { "enabled": false },
+    "mcp": { "enabled": false },
+    "web": { "enabled": false }
+  },
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 18790,
+    "hot_reload": false,
+    "log_level": "info"
+  }
+}
