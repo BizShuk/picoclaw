@@ -28,7 +28,7 @@
       "type": "pico",
       "allow_from": [],
       "settings": {
-        "token": "",
+        "token": "local-dev",
         "allow_token_query": true,
         "allow_origins": ["*"],
         "ping_interval": 30,
