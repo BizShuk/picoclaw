@@ -72,4 +72,7 @@ web/backend/dist/*
 
 docker/data
 
+# Per-agent folders (each is its own git repo; do not track at parent level)
+agents/
+
 .omc/
