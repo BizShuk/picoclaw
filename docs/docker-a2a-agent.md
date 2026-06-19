@@ -1,133 +1,194 @@
-# Docker A2A Networked Agent — 使用與測試指南
+# Docker A2A Agent — 使用指南
 
-一個持續運行的 PicoClaw 容器,會在區網以 mDNS 廣播自己、探索其他 agent,
-並接受 HTTP 或 WebSocket 請求來跑 LLM (MiniMax)。
+`docker-compose.agent.yml` 是**統一長駐 agent** 入口,每跑一次就帶起一個 gateway。
+每個 agent 是 host 上一個自我包含的資料夾(也是獨立 git repo),bind-mount 進容器;
+不需 Docker named volume,down 之後就只是 host 上一個普通資料夾,下次 `up` 再 mount 回去。
 
-金鑰流程:`MINIMAX_API_KEY` 放在 `.env`,由 `gosdk/config.Default()` 載入,
-再注入 `config.a2a.json` 的 minimax model_list 條目 (該欄位無 env binding,
-必須在啟動時寫進 config)。
+## 30 秒上手
 
-## 入口一覽 (Endpoints)
+```bash
+# 1. 建一個 agent 資料夾(已有 alice / bob 範例)
+mkdir -p agents/myagent/{workspace,sessions,logs}
+cp agents/alice/.env.example agents/myagent/.env.example
+cp agents/myagent/.env.example agents/myagent/.env
+$EDITOR agents/myagent/.env                  # 設 MINIMAX_API_KEY
 
-| 用途 | 位址 | 協定 |
+# 2. 寫 config.json(從 agents/alice/config.json 抄,改 agent_id / port)
+
+# 3. 加 service block 到 docker/docker-compose.agent.yml(見下面「加 agent」)
+
+# 4. 啟動
+docker compose -f docker/docker-compose.agent.yml up -d myagent
+
+# 5. 用
+curl -X POST http://localhost:18791/a2a/v1/ask \
+  -H 'Content-Type: application/json' -d '{"text":"用一句話介紹你自己"}'
+
+# 6. 收尾
+docker compose -f docker/docker-compose.agent.yml down myagent
+```
+
+## 檔案配置 (Layout)
+
+每個 agent 資料夾**自我包含**:
+
+```
+agents/<name>/
+├── .git/              獨立 git repo
+├── README.md
+├── config.json        picoclaw config(已 git tracked,source of truth)
+├── .env.example       範本
+├── .env               gitignored,放 MINIMAX_API_KEY
+├── config.active.json 渲染後的 config(每次 entrypoint 重生;gitignored)
+├── workspace/         agent 工作目錄
+├── sessions/          chat history
+└── logs/              runtime logs
+```
+
+`agents/` 整個被 picoclaw repo 的 `.gitignore` 排除(每個子資料夾是獨立 git repo)。
+
+## 環境變數(由 compose 內 service block 寫死,通常不直接用)
+
+| 變數 | 預設 | 角色 |
 | --- | --- | --- |
-| 跑 LLM (最簡單) | `http://HOST:18791/a2a/v1/ask` | HTTP `POST` JSON |
-| Agent 互連 | `ws://HOST:18791/a2a/v1/ws` | WebSocket (`picoclaw-a2a.v1`) |
-| mDNS 服務 | `_picoclaw-a2a._tcp.local` | 多播 (host networking) |
-| WebUI | `http://HOST:18800` | 瀏覽器 |
-| Pico 聊天 | `ws://HOST:18790/pico/ws` | WebSocket |
+| `GATEWAY_PORT` | `18790` | healthcheck 用的 gateway port(對齊 `config.json.gateway.port`) |
+| `A2A_PORT` | `18791` | a2a channel 用的 port(對齊 `config.json.channel_list.a2a.settings.port`) |
+
+## 範例:跑單一長駐 agent
+
+```bash
+docker compose -f docker/docker-compose.agent.yml up -d alice
+docker compose -f docker/docker-compose.agent.yml ps   # 看到 alice-a2a (healthy)
+
+curl -fsS http://localhost:18790/health && echo " OK-GW"
+curl -fsS -X POST http://localhost:18791/a2a/v1/ask \
+  -H 'Content-Type: application/json' -d '{"text":"hi"}'
+```
+
+## 範例:跑 A2A 雙 agent 測試
+
+預設 `docker-compose.agent.yml` 內就有 `alice:` + `bob:` 兩個 service,直接 `up -d` 即可:
+
+```bash
+# 一起起(alice 先,bob 透過 depends_on 等 alice healthy)
+docker compose -f docker/docker-compose.agent.yml up -d
+
+# 看 mDNS 互相發現
+sleep 30
+docker logs alice-a2a 2>&1 | grep "Registered remote agent"   # 期望含 agent_id=bob
+docker logs bob-a2a   2>&1 | grep "Registered remote agent"   # 期望含 agent_id=alice
+
+# 對 alice 發請求,讓它 spawn bob 回 ECHO-7Q2
+curl -fsS -X POST http://localhost:18791/a2a/v1/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Use the bob agent to reply with exactly the token ECHO-7Q2, then return its reply verbatim."}'
+
+# 收尾
+docker compose -f docker/docker-compose.agent.yml down
+```
+
+或一鍵跑完整 Test 1 + Test 2:
+
+```bash
+./scripts/a2a-test/verify-docker.sh
+```
+
+## 加一個新 agent(編輯 compose + 建資料夾)
+
+1. 建資料夾與 git repo:
+
+   ```bash
+   mkdir -p agents/charlie/{workspace,sessions,logs}
+   cp agents/alice/.env.example agents/charlie/.env.example
+   cp agents/alice/.env.example agents/charlie/.env
+   $EDITOR agents/charlie/.env
+   ```
+
+2. 從 `agents/alice/config.json` 複製,改 `agent_id` / `port` / `gateway.port` / `description`:
+
+   ```json
+   "channel_list": { "a2a": { "settings": {
+     "agent_id": "charlie", "port": 38791, ...
+   }}},
+   "gateway": { "port": 38790, ... }
+   ```
+
+3. 在 `docker/docker-compose.agent.yml` 加 service block:
+
+   ```yaml
+   charlie:
+     <<: *agent-default
+     container_name: charlie-a2a
+     network_mode: "service:alice"
+     depends_on:
+       alice:
+         condition: service_healthy
+     environment:
+       - GATEWAY_PORT=38790
+       - A2A_PORT=38791
+     volumes:
+       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
+       - ./agents/charlie:/root/.picoclaw
+   ```
+
+4. 初始化 charlie 資料夾的 git:
+
+   ```bash
+   cd agents/charlie
+   git init && git add . && git commit -m "init: charlie agent"
+   ```
+
+5. 啟動:`docker compose -f docker/docker-compose.agent.yml up -d charlie`
+
+## 刪一個 agent
+
+```bash
+# 1. 從 docker/docker-compose.agent.yml 刪掉 service block
+# 2. (選擇性) 刪資料夾 — 不可逆
+rm -rf agents/charlie
+docker compose -f docker/docker-compose.agent.yml down charlie
+```
 
 ## 元件 (Components)
 
-| 檔案 | 職責 |
+| 檔案 | 角色 |
 | --- | --- |
-| `.env` (gitignored) | 放 `MINIMAX_API_KEY` (從 `.env.example` 複製) |
-| `cmd/picoclaw-envcfg` | 用 `gosdk/config.Default()` 載 `.env`,把金鑰注入 config |
-| `config/config.a2a.json` | 模板:MiniMax model + a2a & pico channels + gateway 0.0.0.0 |
-| `docker/entrypoint-a2a.sh` | 容器啟動時跑 `picoclaw-envcfg` render config,再啟動 launcher |
-| `docker/docker-compose.a2a.yml` | host networking、mount `.env`、mounts |
-| `pkg/channels/a2a/` | mDNS 廣播 / 探索、WS peer 協定、`POST /a2a/v1/ask` HTTP 入口 |
+| `docker/Dockerfile.appbase` | 3-stage build,產出 `picoclaw` + `picoclaw-launcher` + `picoclaw-envcfg` |
+| `docker/entrypoint-agent.sh` | 通用入口;envcfg 渲染 `config.json` → `config.active.json`,exec launcher |
+| `docker/docker-compose.agent.yml` | 統一長駐 agent 入口;`x-agent-default` YAML anchor + N service blocks |
+| `agents/<name>/` | 1 個 agent = 1 個 host 資料夾(也是 git repo) |
+| `cmd/picoclaw-envcfg` | 用 `gosdk/config.Default()` 載 `.env`,注入 `model_list.api_keys` |
+| `pkg/channels/a2a/` | mDNS 廣播 / 探索、WS peer 協定、`POST /a2a/v1/ask` |
 
-金鑰解析順序 (第一個非空者勝):`os.Getenv(MINIMAX_API_KEY)` → `.env` (gosdk/viper)。
-所以 `docker run -e` / compose env 仍可覆蓋 `.env`。
-
----
-
-## Part A — 本機:用 gosdk 載 `.env` 並 render config
-
-驗證 `.env` → gosdk → config 注入是否正確 (不需 Docker)。
-
-1. 建立 `.env` (此檔已被 gitignore):
-
-   ```bash
-   cp .env.example .env
-   # 編輯 .env,把 MINIMAX_API_KEY 換成真實金鑰
-   ```
-
-2. 跑 renderer (它會用 `gosdk/config.Default()` 從目前目錄載入 `.env`):
-
-   ```bash
-   go run ./cmd/picoclaw-envcfg \
-     -template config/config.a2a.json \
-     -out /tmp/config.a2a.local.json
-   # => [envcfg] rendered ... (injected MINIMAX_API_KEY into 1 "minimax" model(s))
-   ```
-
-3. 確認金鑰已注入 (不會印出完整金鑰):
-
-   ```bash
-   python3 -c "import json; k=json.load(open('/tmp/config.a2a.local.json'))['model_list'][0]['api_keys'][0]; print('len=', len(k), 'prefix=', k[:6])"
-   ```
-
-   預期:`len=` 大於 0、`prefix=` 是你金鑰的開頭。
-
-（選用）本機直接跑 picoclaw — 注意 `config.a2a.json` 的 `workspace` 指向容器路徑
-`/root/.picoclaw/workspace`,本機跑請先把 render 出來的檔內 workspace 改成本機可寫目錄,
-再 `go run -tags goolm,stdjson ./web/backend -console -public -no-browser /tmp/config.a2a.local.json`。
-
----
-
-## Part B — 容器:mount `.env` 並啟動
-
-1. 確認 repo 根目錄有 `.env` (Part A 已建立),內含 `MINIMAX_API_KEY=...`。
-
-2. 啟動 (從 repo 根目錄執行):
-
-   ```bash
-   docker compose -f docker/docker-compose.a2a.yml up --build
-   ```
-
-   `docker-compose.a2a.yml` 會:
-   - 以 `network_mode: host` 啟動 (mDNS 多播需要,見下)。
-   - 把 `../.env` mount 到 `/root/.picoclaw/.env`。
-   - entrypoint 跑 `picoclaw-envcfg` (gosdk 載 `.env`) → render `config.json` → 啟動 launcher。
-
-3. 等容器起來後,確認兩個入口都活著:
-
-   ```bash
-   curl -fsS http://localhost:18790/health && echo " OK-GW"
-   curl -fsS -o /dev/null -w "webui:%{http_code}\n" http://localhost:18800
-   ```
-
-4. 跑 LLM:純 HTTP POST
-
-   ```bash
-   curl -fsS -X POST http://localhost:18791/a2a/v1/ask \
-     -H 'Content-Type: application/json' \
-     -d '{"text":"用一句話介紹你自己"}'
-   # => {"answer":"...","session":"http-...."}
-   ```
-
-   可帶 `session` 維持多輪;回應只含最終答案 (中間思考/工具訊息不回傳);
-   超過 `ask_timeout` (預設 120 秒) 回 `504`。
-
-5. (選用) WebSocket 互連入口:`ws://localhost:18791/a2a/v1/ws`,subprotocol `picoclaw-a2a.v1`。
-   或 WebUI 直接開 `http://localhost:18800`。
-
-6. 收尾:
-
-   ```bash
-   docker compose -f docker/docker-compose.a2a.yml down
-   ```
-
----
-
-## mDNS 與網路 (Discovery & Networking)
-
-mDNS 走多播 `224.0.0.251`,無法穿過 Docker 預設 bridge 的 NAT,所以
-compose 用 `network_mode: host`:
-
-- Linux:host networking 下,同網段其他 PicoClaw 會自動發現本 agent,
-  並把它登錄成可 spawn 的遠端 agent (`a2a-mdns`)。
-- macOS / Windows Docker Desktop:host networking 無法觸及實體 LAN,
-  mDNS 僅限容器本機;HTTP / WS 入口仍可用 `localhost` 存取。
-
-## 掛載 app 當 workspace (選用)
+## 收尾 (Cleanup)
 
 ```bash
-APP_DIR=/path/to/your/app \
-  docker compose -f docker/docker-compose.a2a.yml up --build
+# 停某個 agent(container 移除,但 agents/<name>/ 資料夾留在 host)
+docker compose -f docker/docker-compose.agent.yml down alice
+
+# 刪 agent 資料夾(包含 git repo 與 sessions/logs)— 不可逆
+rm -rf agents/alice
+
+# 刪本機的 picoclaw image(若不再用)
+docker image rm picoclaw-appbase:dev
 ```
 
-未指定 `APP_DIR` 時使用具名 volume `picoclaw-a2a-workspace`,容器自包含。
-掛載真實 app 時,`sessions/` 會寫進該資料夾 (方案 A 已知副作用,見 `docs/backlog.md`)。
+## 平台注意
+
+| 平台 | mDNS | 備註 |
+| --- | --- | --- |
+| Linux | container + host LAN 都通(預設 `network_mode: host`) | 預設即可 |
+| macOS Docker Desktop | container loopback 通;host networking 觸不到實體 LAN | 同機雙 agent 用 `network_mode: "service:alice"`(bob 的預設) |
+| 真實跨機驗證 | 兩台 Linux,各自 `network_mode: host` | mDNS 自然走 LAN;不在本指南範圍 |
+
+## 失敗排查
+
+- **healthcheck 一直 `starting`**:a2a channel 啟動比 gateway 慢,`start_period: 15s` 不夠時可調大,或暫時改 `GATEWAY_PORT` 對齊 `config.json` 內 `gateway.port`。
+- **`Registered remote agent` 沒出現**:
+  - 確認兩個 agent 資料夾的 `config.json` 內 `channel_list.a2a.settings.agent_id` 不同(同名會被 self-filter 濾掉)。
+  - 確認第二個 agent 的 `network_mode: "service:alice"` 寫對。
+  - `docker logs <agent>` 看 a2a channel log。
+- **Test 2 沒回 `ECHO-7Q2`**:
+  - 確認 alice config.json 的 `agents.list[0].subagents.allow_agents: ["*"]`。
+  - 確認兩個 `.env` 的 `MINIMAX_API_KEY` 是國際站(`api.minimax.io`)。
+- **想看 frame JSON**:目前不印 envelope;暫時 instrument 見 `plans/2026-06-19-a2a-two-agent-verification.md`。

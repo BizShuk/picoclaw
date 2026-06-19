@@ -171,5 +171,5 @@ make integration-test
 - `registry.go` + `config.go`:subagent spawn 政策改 `預設允許 / 明列 deny`(新增 `subagents.deny_agents`)。agent approval 機制待辦見 `docs/backlog.md`。
 - providers:新增 `minimax-i18n`(國際站 `api.minimax.io`),與既有 `minimax`(中國站 `minimaxi.com`)並存,用 model_name 區分。
 - `cmd/picoclaw-envcfg`:用 `gosdk/config.Default()` 載 `.env`,啟動時把金鑰注入 config(`model_list.api_keys` 無 env binding)。
-- Docker:`docker/Dockerfile.appbase`、`docker/docker-compose.a2a.yml`、`docker/entrypoint-a2a.sh`、`config/config.a2a.json`。
+- Docker:`docker/Dockerfile.appbase`、`docker/docker-compose.agent.yml`(統一長駐 agent;YAML anchor + 多 service,內建 `alice:` / `bob:` 雙 agent 測試)、`docker/entrypoint-agent.sh`(取代 `entrypoint-a2a.sh`)。`agents/<name>/` 為 host 端自我包含資料夾(各為獨立 git repo),bind-mount 進容器;`config.a2a.json` / `config.app.json` / `docker-compose.a2a.yml` / `docker-compose.app.yml` 已廢除,各自 config 下沉到 `agents/<name>/config.json`。
 - 驗證:Test 1(雙向 mDNS 互相發現)、Test 2(alice 經 spawn 叫 bob 回 `ECHO-7Q2`,HTTP caller 收到)皆 PASS。
