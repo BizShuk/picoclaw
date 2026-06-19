@@ -1,33 +1,37 @@
 # docker-compose.agent.yml
 # ─────────────────────────────────────────────────────────────────────────
-# Unified long-running agent compose.
-#   1 service block = 1 agent = 1 container = 1 host folder (its own git repo).
-#   Add/remove an agent by adding/deleting a service block below.
-#   Each block inherits shared settings from x-agent-default via YAML anchor.
+# PicoClaw unified agent compose.
+#   All containers (A2A pair / local dev CLI / local dev gateway / launcher /
+#   full-MCP variants) live in this single file. User decides which to create
+#   via profile or by naming the service directly.
 #
-#   docker compose -f docker-compose.agent.yml up -d alice     # start one
-#   docker compose -f docker-compose.agent.yml up -d           # start all
-#   docker compose -f docker-compose.agent.yml down bob        # stop one
-#   docker compose -f docker-compose.agent.yml down            # stop all
+# Quick reference (run from repo root):
+#   docker compose -f docker/docker-compose.agent.yml --profile a2a up -d
+#       → start alice + bob (A2A pair test)
+#   docker compose -f docker/docker-compose.agent.yml --profile local up -d
+#       → start picoclaw-gateway + picoclaw-launcher (local dev daemons)
+#   docker compose -f docker/docker-compose.agent.yml run --rm picoclaw-agent -m "hi"
+#       → one-shot CLI query (basic)
+#   docker compose -f docker/docker-compose.agent.yml --profile full-mcp up -d
+#       → start full-MCP variants
+#   docker compose -f docker/docker-compose.agent.yml up -d alice picoclaw-launcher
+#       → start specific services (bypasses profile filter)
+#   docker compose -f docker/docker-compose.agent.yml down alice
+#       → stop a specific service
 #
-# Each host agent folder (agents/<name>/) is bind-mounted to /root/.picoclaw
-# and contains its own config.json + .env + workspace + sessions + logs.
-# No Docker named volumes — down leaves the folder as a plain host folder;
-# next `up` re-mounts it.
+# To add a new A2A agent: copy the `alice:` block, change container_name /
+# env (GATEWAY_PORT, A2A_PORT) / volume (./agents/<name>), and add
+# `depends_on: alice: condition: service_healthy` if it should share
+# alice's netns.
 # ─────────────────────────────────────────────────────────────────────────
 
+# Shared anchor for long-running gateway services (envcfg + launcher pattern).
+# Each service that uses this still defines its own image, build, network_mode,
+# environment, volumes (the YAML << merge is shallow; redefining a key in the
+# service replaces the anchor's value for that key).
 x-agent-default: &agent-default
-  build:
-    context: ..
-    dockerfile: docker/Dockerfile.appbase
-  image: picoclaw-appbase:dev
   restart: unless-stopped
-  environment:
-    - PICOCLAW_GATEWAY_HOST=0.0.0.0
-    - PICOCLAW_CONFIG_DIR=/root/.picoclaw
   entrypoint: ["/bin/sh", "/opt/picoclaw/entrypoint-agent.sh"]
-  volumes:
-    - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
   healthcheck:
     test: ["CMD", "curl", "-fsS", "http://localhost:${GATEWAY_PORT:-18790}/health"]
     interval: 10s
@@ -36,36 +40,142 @@ x-agent-default: &agent-default
     retries: 5
   stop_grace_period: 5s
 
+# Shared anchor for CLI one-shot services (basic + full MCP variants).
+x-cli-default: &cli-default
+  image: picoclaw:dev
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  stdin_open: true
+  tty: true
+  volumes:
+    - ./data:/root/.picoclaw
+  entrypoint: ["picoclaw", "agent"]
+  stop_grace_period: 5s
+
+# Shared anchor for the webui+gateway launcher image.
+x-launcher-default: &launcher-default
+  image: picoclaw-launcher:dev
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile.launcher
+  restart: unless-stopped
+  environment:
+    - PICOCLAW_GATEWAY_HOST=0.0.0.0
+  ports:
+    - "18800:18800"
+    - "18790:18790"
+  volumes:
+    - ./data:/root/.picoclaw
+  stop_grace_period: 5s
+
 services:
   # ─────────────────────────────────────────────────────────────────────────
-  # alice — can spawn any remote agent; serves as the mDNS anchor for bob.
-  # Default network_mode: host (mDNS reaches LAN on Linux; container-only on macOS).
+  # A2A pair
+  #   alice — host networking, mDNS anchor on LAN (or container loopback on macOS)
+  #   bob   — shares alice's netns, depends on alice healthy
+  # Start: --profile a2a  |  --profile alice  |  --profile bob
   # ─────────────────────────────────────────────────────────────────────────
   alice:
     <<: *agent-default
+    image: picoclaw-appbase:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
     container_name: alice-a2a
     network_mode: host
+    profiles: [a2a, alice]
     environment:
+      - PICOCLAW_GATEWAY_HOST=0.0.0.0
+      - PICOCLAW_CONFIG_DIR=/root/.picoclaw
       - GATEWAY_PORT=18790
       - A2A_PORT=18791
     volumes:
       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
       - ./agents/alice:/root/.picoclaw
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # bob — pure answerer; shares alice's netns so mDNS loopback works
-  # on the same host. depends_on ensures alice is healthy first.
-  # ─────────────────────────────────────────────────────────────────────────
   bob:
     <<: *agent-default
+    image: picoclaw-appbase:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
     container_name: bob-a2a
     network_mode: "service:alice"
+    profiles: [a2a, bob]
     depends_on:
       alice:
         condition: service_healthy
     environment:
+      - PICOCLAW_GATEWAY_HOST=0.0.0.0
+      - PICOCLAW_CONFIG_DIR=/root/.picoclaw
       - GATEWAY_PORT=28790
       - A2A_PORT=28791
     volumes:
       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
       - ./agents/bob:/root/.picoclaw
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Local dev (basic Dockerfile)
+  #   picoclaw-agent     — one-shot CLI / REPL (run --rm)
+  #   picoclaw-gateway   — long-running gateway daemon (envcfg + launcher)
+  #   picoclaw-launcher  — gateway + webui (uses Dockerfile.launcher)
+  # Start: --profile local
+  # ─────────────────────────────────────────────────────────────────────────
+  picoclaw-agent:
+    <<: *cli-default
+    container_name: picoclaw-agent
+    profiles: [local, cli]
+
+  picoclaw-gateway:
+    <<: *agent-default
+    image: picoclaw-gateway:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gateway
+    container_name: picoclaw-gateway
+    profiles: [local, gateway]
+    environment:
+      - PICOCLAW_GATEWAY_HOST=0.0.0.0
+      - PICOCLAW_CONFIG_DIR=/root/.picoclaw
+      - GATEWAY_PORT=18790
+    volumes:
+      - ./data:/root/.picoclaw
+      - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
+
+  picoclaw-launcher:
+    <<: *launcher-default
+    container_name: picoclaw-launcher
+    profiles: [local, launcher]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Full-MCP variants (uses Dockerfile.full — heavier, full MCP support)
+  # Start: --profile full-mcp
+  # ─────────────────────────────────────────────────────────────────────────
+  picoclaw-agent-full:
+    <<: *cli-default
+    image: picoclaw-full:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.full
+    container_name: picoclaw-agent-full
+    profiles: [full-mcp, cli]
+
+  picoclaw-gateway-full:
+    # Dockerfile.full only has the picoclaw CLI binary (no launcher/envcfg),
+    # so we run `picoclaw gateway` directly instead of going through
+    # entrypoint-agent.sh (which needs picoclaw-launcher).
+    image: picoclaw-full:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.full
+    container_name: picoclaw-gateway-full
+    restart: unless-stopped
+    profiles: [full-mcp, gateway]
+    environment:
+      - PICOCLAW_GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=18790
+    volumes:
+      - ./data:/root/.picoclaw
+    entrypoint: ["picoclaw"]
+    command: ["gateway"]
