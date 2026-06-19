@@ -45,6 +45,11 @@ picoclaw-envcfg \
 #   PICOCLAW_USE_LAUNCHER=false — run `picoclaw gateway` directly. Use for
 #     A2A peer agents that don't need a webui and where another container
 #     in the same netns is already binding :18800 (port conflict).
+#
+# Both paths need PICOCLAW_CONFIG pointed at the rendered config; otherwise
+# picoclaw falls back to /root/.picoclaw/config.json (the template with
+# MINIMAX-REPLACE-ME placeholder) and the LLM call returns 401.
+export PICOCLAW_CONFIG="$TARGET"
 USE_LAUNCHER="${PICOCLAW_USE_LAUNCHER:-true}"
 if [ "$USE_LAUNCHER" = "true" ]; then
   exec picoclaw-launcher -console -public -no-browser "$TARGET"
