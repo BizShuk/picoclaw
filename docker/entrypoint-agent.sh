@@ -38,4 +38,16 @@ picoclaw-envcfg \
   -env-key MINIMAX_API_KEY \
   -app-name picoclaw
 
-exec picoclaw-launcher -console -public -no-browser "$TARGET"
+# Two execution paths:
+#   PICOCLAW_USE_LAUNCHER=true  (default) — picoclaw-launcher wraps the
+#     gateway and serves the webui on :18800. Use for user-facing agents
+#     that need a chat console.
+#   PICOCLAW_USE_LAUNCHER=false — run `picoclaw gateway` directly. Use for
+#     A2A peer agents that don't need a webui and where another container
+#     in the same netns is already binding :18800 (port conflict).
+USE_LAUNCHER="${PICOCLAW_USE_LAUNCHER:-true}"
+if [ "$USE_LAUNCHER" = "true" ]; then
+  exec picoclaw-launcher -console -public -no-browser "$TARGET"
+else
+  exec picoclaw gateway
+fi

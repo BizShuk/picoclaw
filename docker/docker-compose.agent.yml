@@ -92,7 +92,7 @@ services:
       - A2A_PORT=18791
     volumes:
       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
-      - ./agents/alice:/root/.picoclaw
+      - ../agents/alice:/root/.picoclaw
 
   bob:
     <<: *agent-default
@@ -111,9 +111,13 @@ services:
       - PICOCLAW_CONFIG_DIR=/root/.picoclaw
       - GATEWAY_PORT=28790
       - A2A_PORT=28791
+      # picoclaw-launcher hard-codes :18800 and would conflict with alice's
+      # launcher in the shared netns. Skip it; run `picoclaw gateway`
+      # directly so bob acts as a pure A2A peer.
+      - PICOCLAW_USE_LAUNCHER=false
     volumes:
       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
-      - ./agents/bob:/root/.picoclaw
+      - ../agents/bob:/root/.picoclaw
 
   # ─────────────────────────────────────────────────────────────────────────
   # Local dev (basic Dockerfile)

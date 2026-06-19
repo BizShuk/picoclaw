@@ -24,7 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[1/4] bring up alice + bob..."
-docker compose -f "$COMPOSE_FILE" up -d --build
+docker compose -f "$COMPOSE_FILE" --profile a2a up -d --build
 
 echo "[2/4] wait 30s for healthy + mDNS discovery..."
 sleep 30
