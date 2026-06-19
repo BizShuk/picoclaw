@@ -16,3 +16,18 @@
 
 優點:app 資料夾零污染、persona 不必動使用者 repo。
 代價:agent 的「base」是設定面的 (allow paths) 而非 workspace 根,設定略多。
+
+## Agent 互呼授權 (Agent-Spawn Approval)
+
+來源:2026-06-19,A2A 雙 agent 驗證後的決策。
+
+現況:spawn/subagent/delegate 的權限政策已改為「預設允許,只有 deny 需明列」
+(`agentAllowsSubagent` in `pkg/agent/registry.go`;config `subagents.allow_agents` /
+`subagents.deny_agents`)。預設允許讓 A2A mesh 好用,但少了即時把關。
+
+待實作:human-in-the-loop 的 agent 互呼「核准」機制 —— 當一個 agent 要 spawn / ask
+另一個 agent (尤其 A2A 遠端 peer) 時,先發出 approval 請求,經人工 (或策略) 核准後才執行。
+
+- 進入點:`spawnSubTurn` / `spawnRemoteSubTurn` (`pkg/agent/subturn.go:313,323`)。
+- 可重用既有 hook/steering 或 runtime event 機制送出「待核准」訊號,核准前阻塞或拒絕。
+- deny-list 與 approval 互補:deny 是靜態硬封鎖,approval 是動態逐次把關。

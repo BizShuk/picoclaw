@@ -266,12 +266,66 @@ func SpawnSubTurn(ctx context.Context, cfg SubTurnConfig) (*tools.ToolResult, er
 	return spawnSubTurn(ctx, al, parentTS, cfg)
 }
 
+func spawnRemoteSubTurn(
+	ctx context.Context,
+	al *AgentLoop,
+	parentTS *turnState,
+	remote *RemoteAgentDescriptor,
+	cfg SubTurnConfig,
+) (*tools.ToolResult, error) {
+	rtCfg := al.getSubTurnConfig()
+
+	// 1. Concurrency semaphore - shared with local sub-turns
+	if parentTS.concurrencySem != nil {
+		timeoutCtx, cancel := context.WithTimeout(ctx, rtCfg.concurrencyTimeout)
+		defer cancel()
+		select {
+		case parentTS.concurrencySem <- struct{}{}:
+			defer func() { <-parentTS.concurrencySem }()
+		case <-timeoutCtx.Done():
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return nil, fmt.Errorf("%w: all %d slots occupied for %v",
+				ErrConcurrencyTimeout, rtCfg.maxConcurrent, rtCfg.concurrencyTimeout)
+		}
+	}
+
+	// 2. Depth guard - remote also increments depth
+	if parentTS.depth+1 > rtCfg.maxDepth {
+		logger.WarnCF("subturn", "Remote depth limit exceeded", map[string]any{
+			"parent_id": parentTS.turnID,
+			"depth":     parentTS.depth,
+			"max_depth": rtCfg.maxDepth,
+		})
+		return nil, ErrDepthLimitExceeded
+	}
+
+	// 3. Timeout
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = rtCfg.defaultTimeout
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// 4. Delegate to remote hook
+	return remote.RemoteHook(callCtx, cfg)
+}
+
 func spawnSubTurn(
 	ctx context.Context,
 	al *AgentLoop,
 	parentTS *turnState,
 	cfg SubTurnConfig,
 ) (result *tools.ToolResult, err error) {
+	// === NEW: remote-agent fast-path ===
+	if cfg.TargetAgentID != "" {
+		if remote := al.registry.ResolveRemote(cfg.TargetAgentID); remote != nil {
+			return spawnRemoteSubTurn(ctx, al, parentTS, remote, cfg)
+		}
+	}
+
 	// Get effective SubTurn configuration
 	rtCfg := al.getSubTurnConfig()
 

@@ -135,10 +135,35 @@ func TestAgentRegistry_CanSpawnSubagent(t *testing.T) {
 		t.Error("expected parent to be allowed to spawn child2")
 	}
 	if registry.CanSpawnSubagent("parent", "restricted") {
-		t.Error("expected parent to NOT be allowed to spawn restricted")
+		t.Error("expected parent to NOT be allowed to spawn restricted (explicit allowlist excludes it)")
 	}
-	if registry.CanSpawnSubagent("child1", "child2") {
-		t.Error("expected child1 to NOT be allowed to spawn (no subagents config)")
+	// Default-allow policy: an agent with no subagents config may spawn freely.
+	if !registry.CanSpawnSubagent("child1", "child2") {
+		t.Error("expected child1 to be allowed to spawn by default (no subagents config)")
+	}
+}
+
+func TestAgentRegistry_CanSpawnSubagent_DenyList(t *testing.T) {
+	cfg := testCfg([]config.AgentConfig{
+		{
+			ID:      "parent",
+			Default: true,
+			Subagents: &config.SubagentsConfig{
+				DenyAgents: []string{"blocked"},
+			},
+		},
+		{ID: "blocked"},
+		{ID: "allowed"},
+	})
+	registry := NewAgentRegistry(cfg, &mockRegistryProvider{})
+
+	// Default-allow: non-denied agents are spawnable without an allowlist.
+	if !registry.CanSpawnSubagent("parent", "allowed") {
+		t.Error("expected parent to be allowed to spawn a non-denied agent by default")
+	}
+	// Explicit deny blocks.
+	if registry.CanSpawnSubagent("parent", "blocked") {
+		t.Error("expected parent to NOT be allowed to spawn a denied agent")
 	}
 }
 

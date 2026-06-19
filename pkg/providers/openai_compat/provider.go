@@ -65,10 +65,11 @@ var stripModelPrefixProviders = map[string]struct{}{
 	"siliconflow": {},
 	"zhipu":       {},
 	"mistral":     {},
-	"vivgrid":     {},
-	"minimax":     {},
-	"novita":      {},
-	"lmstudio":    {},
+	"vivgrid":      {},
+	"minimax":      {},
+	"minimax-i18n": {},
+	"novita":       {},
+	"lmstudio":     {},
 }
 
 func WithMaxTokensField(maxTokensField string) Option {

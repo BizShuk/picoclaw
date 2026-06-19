@@ -318,8 +318,13 @@ type AgentConfig struct {
 }
 
 type SubagentsConfig struct {
-	AllowAgents []string          `json:"allow_agents,omitempty"`
-	Model       *AgentModelConfig `json:"model,omitempty"`
+	// AllowAgents, when non-empty, restricts spawning to the listed agent IDs
+	// (or "*"). When empty, spawning is allowed by default (see DenyAgents).
+	AllowAgents []string `json:"allow_agents,omitempty"`
+	// DenyAgents blocks spawning the listed agent IDs (or "*"). Deny takes
+	// precedence over allow and over the default-allow policy.
+	DenyAgents []string          `json:"deny_agents,omitempty"`
+	Model      *AgentModelConfig `json:"model,omitempty"`
 }
 
 type DispatchConfig struct {
@@ -634,6 +639,21 @@ type IRCSettings struct {
 	SASLPassword     SecureString        `json:"sasl_password,omitzero"     yaml:"sasl_password,omitempty"     env:"PICOCLAW_CHANNELS_IRC_SASL_PASSWORD"`
 	Channels         FlexibleStringSlice `json:"channels"                   yaml:"-"                           env:"PICOCLAW_CHANNELS_IRC_CHANNELS"`
 	RequestCaps      FlexibleStringSlice `json:"request_caps,omitempty"     yaml:"-"`
+}
+
+type A2ASettings struct {
+	AgentID          string        `json:"agent_id"          yaml:"agent_id"          env:"PICOCLAW_CHANNELS_A2A_AGENT_ID"`
+	Port             int           `json:"port"              yaml:"port"              env:"PICOCLAW_CHANNELS_A2A_PORT"`
+	BindAddr         string        `json:"bind_addr"         yaml:"bind_addr"         env:"PICOCLAW_CHANNELS_A2A_BIND_ADDR"`
+	Description      string        `json:"description"       yaml:"description"`
+	AnnounceInterval time.Duration `json:"announce_interval" yaml:"announce_interval"`
+	PeerTTL          time.Duration `json:"peer_ttl"          yaml:"peer_ttl"`
+	MaxTurnDefault   int           `json:"max_turn_default"  yaml:"max_turn_default"`
+	AskTimeout       time.Duration `json:"ask_timeout"       yaml:"ask_timeout"`
+	DialTimeout      time.Duration `json:"dial_timeout"      yaml:"dial_timeout"`
+	IdleConnTTL      time.Duration `json:"idle_conn_ttl"     yaml:"idle_conn_ttl"`
+	MDNSDomain       string        `json:"mdns_domain"       yaml:"mdns_domain"`
+	ServiceType      string        `json:"service_type"      yaml:"service_type"`
 }
 
 type VKSettings struct {

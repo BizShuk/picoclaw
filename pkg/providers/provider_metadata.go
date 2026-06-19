@@ -442,6 +442,18 @@ var modelProviderOptionsByName = map[string]ModelProviderOption{
 		Priority:            42,
 		httpAPI:             true,
 	},
+	"minimax-i18n": {
+		ID:                  "minimax-i18n",
+		DisplayName:         "MiniMax (International)",
+		IconSlug:            "minimax",
+		Domain:              "minimax.io",
+		DefaultAPIBase:      "https://api.minimax.io/v1",
+		CreateAllowed:       true,
+		DefaultModelAllowed: true,
+		SupportsFetch:       true,
+		Priority:            41,
+		httpAPI:             true,
+	},
 	"longcat": {
 		ID:                  "longcat",
 		DisplayName:         "LongCat",

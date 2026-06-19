@@ -36,6 +36,9 @@ RUN CONFIG_PKG=github.com/sipeed/picoclaw/pkg/config && \
       -ldflags "-X ${CONFIG_PKG}.Version=${VERSION} -X ${CONFIG_PKG}.GitCommit=${GIT_COMMIT} -X ${CONFIG_PKG}.BuildTime=${BUILD_TIME} -X ${CONFIG_PKG}.GoVersion=${GO_VERSION} -s -w" \
       -o build/picoclaw-launcher ./web/backend/
 
+# Config renderer: loads .env via gosdk/config.Default() and injects the API key.
+RUN CGO_ENABLED=0 go build -v -ldflags "-s -w" -o build/picoclaw-envcfg ./cmd/picoclaw-envcfg
+
 # ============================================================
 # Stage 3: Runtime with Go + Node + Python toolchains
 #   (the agent uses these to build/test/run the mounted app)
@@ -56,6 +59,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
 
 COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
 COPY --from=builder /src/build/picoclaw-launcher /usr/local/bin/picoclaw-launcher
+COPY --from=builder /src/build/picoclaw-envcfg /usr/local/bin/picoclaw-envcfg
 
 # Create the baseline ~/.picoclaw skeleton; runtime mounts override config.json + workspace
 RUN /usr/local/bin/picoclaw onboard

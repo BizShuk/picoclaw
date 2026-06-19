@@ -31,13 +31,31 @@ func (r *AgentRegistry) ListAgents(workspace string) []AgentDescriptor {
 	sort.Strings(ids)
 
 	selfWorkspace := cleanWorkspacePath(workspace)
-	descriptors := make([]AgentDescriptor, 0, len(ids))
+	descriptors := make([]AgentDescriptor, 0, len(ids)+len(r.remotes))
 	for _, id := range ids {
 		agent := r.agents[id]
 		if agent == nil {
 			continue
 		}
 		descriptors = append(descriptors, r.buildAgentDescriptorLocked(agent))
+	}
+
+	// Add remote agents
+	remoteIDs := make([]string, 0, len(r.remotes))
+	for id := range r.remotes {
+		remoteIDs = append(remoteIDs, id)
+	}
+	sort.Strings(remoteIDs)
+	for _, id := range remoteIDs {
+		rd := r.remotes[id]
+		if rd == nil {
+			continue
+		}
+		descriptors = append(descriptors, AgentDescriptor{
+			ID:          rd.ID,
+			Name:        rd.Name,
+			Description: rd.Description,
+		})
 	}
 
 	if selfWorkspace == "" {
@@ -88,13 +106,34 @@ func (r *AgentRegistry) ListSpawnableAgents(agentID string) []AgentDescriptor {
 	}
 	sort.Strings(ids)
 
-	descriptors := make([]AgentDescriptor, 0, len(ids))
+	descriptors := make([]AgentDescriptor, 0, len(ids)+len(r.remotes))
 	for _, id := range ids {
 		agent := r.agents[id]
 		if agent == nil {
 			continue
 		}
 		descriptors = append(descriptors, r.buildAgentDescriptorLocked(agent))
+	}
+
+	// Add allowed remote agents
+	remoteIDs := make([]string, 0, len(r.remotes))
+	for id := range r.remotes {
+		if !agentAllowsSubagent(parent, id) {
+			continue
+		}
+		remoteIDs = append(remoteIDs, id)
+	}
+	sort.Strings(remoteIDs)
+	for _, id := range remoteIDs {
+		rd := r.remotes[id]
+		if rd == nil {
+			continue
+		}
+		descriptors = append(descriptors, AgentDescriptor{
+			ID:          rd.ID,
+			Name:        rd.Name,
+			Description: rd.Description,
+		})
 	}
 	return descriptors
 }
@@ -105,13 +144,20 @@ func (r *AgentRegistry) GetAgentDescriptor(agentID string) (*AgentDescriptor, bo
 	defer r.mu.RUnlock()
 
 	id := routing.NormalizeAgentID(agentID)
-	agent, ok := r.agents[id]
-	if !ok || agent == nil {
-		return nil, false
+	if agent, ok := r.agents[id]; ok && agent != nil {
+		descriptor := r.buildAgentDescriptorLocked(agent)
+		return &descriptor, true
 	}
 
-	descriptor := r.buildAgentDescriptorLocked(agent)
-	return &descriptor, true
+	if rd, ok := r.remotes[id]; ok && rd != nil {
+		return &AgentDescriptor{
+			ID:          rd.ID,
+			Name:        rd.Name,
+			Description: rd.Description,
+		}, true
+	}
+
+	return nil, false
 }
 
 func (r *AgentRegistry) buildAgentDescriptorLocked(agent *AgentInstance) AgentDescriptor {

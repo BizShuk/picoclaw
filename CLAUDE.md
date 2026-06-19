@@ -159,3 +159,17 @@ make integration-test
 - 錯誤處理：採用 Go 標準 `error` 傳遞與多重回退鏈 (Fallback Chain) 設計，`maybePublishError` 統一捕獲 turn 執行中的異常並寫入 Bus。
 - 日誌記錄：統一使用 `pkg/logger` 提供結構化日誌輸出，以 debug, info, warn, error 控制輸出層級。
 - 單元測試：全面使用 `github.com/stretchr/testify/assert` 進行狀態斷言與 mock 測試。
+
+## 變更紀錄 (Changelog)
+
+### 2026-06-19 — A2A 跨 agent + Docker MiniMax agent
+
+- `pkg/channels/a2a/`：新增 A2A channel(mDNS 廣播/探索、WS peer 協定、`POST /a2a/v1/ask` 同步 HTTP 入口)。
+- `gateway.go`：blank-import `channels/a2a` 註冊 factory(否則 channel 不啟動)。
+- `discovery.go`：mDNS 改傳明確 hostname + primary outbound IP(修「裸IP hostname 起不來」與「廣播到虛擬網卡」)。
+- `a2a.go` + `session_route.go`:`sessionRouteTable`(key=ChatID)讓回覆 outbound 補回遺失的 a2a 路由 context;janitor goroutine TTL 1 天 + 回覆送出即 evict。
+- `registry.go` + `config.go`:subagent spawn 政策改 `預設允許 / 明列 deny`(新增 `subagents.deny_agents`)。agent approval 機制待辦見 `docs/backlog.md`。
+- providers:新增 `minimax-i18n`(國際站 `api.minimax.io`),與既有 `minimax`(中國站 `minimaxi.com`)並存,用 model_name 區分。
+- `cmd/picoclaw-envcfg`:用 `gosdk/config.Default()` 載 `.env`,啟動時把金鑰注入 config(`model_list.api_keys` 無 env binding)。
+- Docker:`docker/Dockerfile.appbase`、`docker/docker-compose.a2a.yml`、`docker/entrypoint-a2a.sh`、`config/config.a2a.json`。
+- 驗證:Test 1(雙向 mDNS 互相發現)、Test 2(alice 經 spawn 叫 bob 回 `ECHO-7Q2`,HTTP caller 收到)皆 PASS。

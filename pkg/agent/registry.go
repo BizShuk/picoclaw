@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"context"
+	"fmt"
 	"sync"
 
 	"github.com/sipeed/picoclaw/pkg/bus"
@@ -11,10 +13,23 @@ import (
 	"github.com/sipeed/picoclaw/pkg/tools"
 )
 
+// RemoteAgentDescriptor represents a virtual agent discovered over the network (e.g. A2A).
+type RemoteAgentDescriptor struct {
+	ID          string          // e.g. "bob" (mDNS instance name)
+	Name        string          // human-readable
+	Description string          // peer capability description
+	Source      string          // source channel identifier, e.g. "a2a-mdns"
+	RemoteHook  RemoteSpawnHook // callback that handles the RPC AskPeer call
+}
+
+// RemoteSpawnHook is a callback that executes a sub-turn on a remote peer.
+type RemoteSpawnHook func(ctx context.Context, cfg SubTurnConfig) (*tools.ToolResult, error)
+
 // AgentRegistry manages multiple agent instances and routes messages to them.
 type AgentRegistry struct {
 	cfg      *config.Config
 	agents   map[string]*AgentInstance
+	remotes  map[string]*RemoteAgentDescriptor
 	resolver *routing.RouteResolver
 	mu       sync.RWMutex
 }
@@ -27,6 +42,7 @@ func NewAgentRegistry(
 	registry := &AgentRegistry{
 		cfg:      cfg,
 		agents:   make(map[string]*AgentInstance),
+		remotes:  make(map[string]*RemoteAgentDescriptor),
 		resolver: routing.NewRouteResolver(cfg),
 	}
 
@@ -62,6 +78,39 @@ func NewAgentRegistry(
 	}
 
 	return registry
+}
+
+// RegisterDynamic registers a remote peer as a spawnable virtual agent.
+func (r *AgentRegistry) RegisterDynamic(d *RemoteAgentDescriptor) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	id := routing.NormalizeAgentID(d.ID)
+	if _, exists := r.agents[id]; exists {
+		return fmt.Errorf("agent id %q conflicts with local agent", id)
+	}
+	r.remotes[id] = d
+	logger.InfoCF("agent", "Registered remote agent", map[string]any{
+		"agent_id": id, "source": d.Source,
+	})
+	return nil
+}
+
+// UnregisterDynamic unregisters a remote peer.
+func (r *AgentRegistry) UnregisterDynamic(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	id = routing.NormalizeAgentID(id)
+	delete(r.remotes, id)
+	logger.InfoCF("agent", "Unregistered remote agent", map[string]any{
+		"agent_id": id,
+	})
+}
+
+// ResolveRemote returns the remote peer descriptor, or nil if not a remote.
+func (r *AgentRegistry) ResolveRemote(id string) *RemoteAgentDescriptor {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.remotes[routing.NormalizeAgentID(id)]
 }
 
 // GetAgent returns the agent instance for a given ID.
@@ -122,19 +171,36 @@ func (r *AgentRegistry) CanSpawnSubagent(parentAgentID, targetAgentID string) bo
 	return agentAllowsSubagent(parent, routing.NormalizeAgentID(targetAgentID))
 }
 
+// agentAllowsSubagent applies the spawn policy: allow by default, deny only when
+// explicitly listed. An explicit AllowAgents list, when set, narrows spawning to
+// its members; DenyAgents always wins. With no subagents config, spawning is
+// permitted (the agent-approval flow is the intended human-in-the-loop gate; see
+// docs/backlog.md).
 func agentAllowsSubagent(parent *AgentInstance, targetNorm string) bool {
-	if parent == nil || parent.Subagents == nil || parent.Subagents.AllowAgents == nil {
+	if parent == nil || parent.Subagents == nil {
+		return true
+	}
+	sub := parent.Subagents
+
+	// Explicit deny takes precedence over everything else.
+	for _, denied := range sub.DenyAgents {
+		if denied == "*" || routing.NormalizeAgentID(denied) == targetNorm {
+			return false
+		}
+	}
+
+	// An explicit allowlist, when provided, restricts spawning to its members.
+	if len(sub.AllowAgents) > 0 {
+		for _, allowed := range sub.AllowAgents {
+			if allowed == "*" || routing.NormalizeAgentID(allowed) == targetNorm {
+				return true
+			}
+		}
 		return false
 	}
-	for _, allowed := range parent.Subagents.AllowAgents {
-		if allowed == "*" {
-			return true
-		}
-		if routing.NormalizeAgentID(allowed) == targetNorm {
-			return true
-		}
-	}
-	return false
+
+	// No allowlist configured: allow by default.
+	return true
 }
 
 func agentHasSpawnTool(agent *AgentInstance) bool {
