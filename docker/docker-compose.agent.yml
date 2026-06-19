@@ -1,0 +1,71 @@
+# docker-compose.agent.yml
+# ─────────────────────────────────────────────────────────────────────────
+# Unified long-running agent compose.
+#   1 service block = 1 agent = 1 container = 1 host folder (its own git repo).
+#   Add/remove an agent by adding/deleting a service block below.
+#   Each block inherits shared settings from x-agent-default via YAML anchor.
+#
+#   docker compose -f docker-compose.agent.yml up -d alice     # start one
+#   docker compose -f docker-compose.agent.yml up -d           # start all
+#   docker compose -f docker-compose.agent.yml down bob        # stop one
+#   docker compose -f docker-compose.agent.yml down            # stop all
+#
+# Each host agent folder (agents/<name>/) is bind-mounted to /root/.picoclaw
+# and contains its own config.json + .env + workspace + sessions + logs.
+# No Docker named volumes — down leaves the folder as a plain host folder;
+# next `up` re-mounts it.
+# ─────────────────────────────────────────────────────────────────────────
+
+x-agent-default: &agent-default
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile.appbase
+  image: picoclaw-appbase:dev
+  restart: unless-stopped
+  environment:
+    - PICOCLAW_GATEWAY_HOST=0.0.0.0
+    - PICOCLAW_CONFIG_DIR=/root/.picoclaw
+  entrypoint: ["/bin/sh", "/opt/picoclaw/entrypoint-agent.sh"]
+  volumes:
+    - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:${GATEWAY_PORT:-18790}/health"]
+    interval: 10s
+    timeout: 3s
+    start_period: 15s
+    retries: 5
+  stop_grace_period: 5s
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # alice — can spawn any remote agent; serves as the mDNS anchor for bob.
+  # Default network_mode: host (mDNS reaches LAN on Linux; container-only on macOS).
+  # ─────────────────────────────────────────────────────────────────────────
+  alice:
+    <<: *agent-default
+    container_name: alice-a2a
+    network_mode: host
+    environment:
+      - GATEWAY_PORT=18790
+      - A2A_PORT=18791
+    volumes:
+      - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
+      - ./agents/alice:/root/.picoclaw
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # bob — pure answerer; shares alice's netns so mDNS loopback works
+  # on the same host. depends_on ensures alice is healthy first.
+  # ─────────────────────────────────────────────────────────────────────────
+  bob:
+    <<: *agent-default
+    container_name: bob-a2a
+    network_mode: "service:alice"
+    depends_on:
+      alice:
+        condition: service_healthy
+    environment:
+      - GATEWAY_PORT=28790
+      - A2A_PORT=28791
+    volumes:
+      - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
+      - ./agents/bob:/root/.picoclaw
