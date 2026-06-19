@@ -90,6 +90,12 @@ services:
       - PICOCLAW_CONFIG_DIR=/root/.picoclaw
       - GATEWAY_PORT=18790
       - A2A_PORT=18791
+      # Run `picoclaw gateway` directly (no launcher) so a2a channel logs go
+      # to PID 1 stdout = `docker logs`. Useful for A2A peer testing; the
+      # webui is not needed for an A2A peer. Set true if you want the
+      # webui on :18800 (then bob must use a different port for its
+      # launcher or be in a different netns).
+      - PICOCLAW_USE_LAUNCHER=false
     volumes:
       - ./entrypoint-agent.sh:/opt/picoclaw/entrypoint-agent.sh:ro
       - ../agents/alice:/root/.picoclaw
