@@ -6,9 +6,8 @@
 // local runs and the container: gosdk loads .env (and .env.local), and the chosen
 // provider's api_keys is replaced with the value of the named env key.
 //
-// Resolution order for the key (first non-empty wins):
-//  1. process environment (os.Getenv) — honours `docker run -e` / compose env
-//  2. gosdk/viper (.env / .env.local loaded by config.Default)
+// Resolution order for the key:
+//  gosdk/viper (.env / .env.local / process environment)
 package main
 
 import (
@@ -33,10 +32,7 @@ func main() {
 	// into viper's global registry.
 	gconfig.Default(gconfig.WithAppName(*appName))
 
-	key := os.Getenv(*envKey)
-	if key == "" {
-		key = viper.GetString(*envKey)
-	}
+	key := viper.GetString(*envKey)
 	if key == "" {
 		fmt.Fprintf(os.Stderr, "[envcfg] WARNING: %s not found in environment or .env; rendering template as-is\n", *envKey)
 	}

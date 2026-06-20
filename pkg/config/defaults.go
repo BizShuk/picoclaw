@@ -258,9 +258,9 @@ func DefaultConfig() *Config {
 
 			// Minimax (International) - https://www.minimax.io/
 			{
-				ModelName: "MiniMax-M2.5-i18n",
+				ModelName: "MiniMax-M3",
 				Provider:  "minimax-i18n",
-				Model:     "MiniMax-M2.5",
+				Model:     "MiniMax-M3",
 				APIBase:   "https://api.minimax.io/v1",
 				ExtraBody: map[string]any{"reasoning_split": true},
 			},

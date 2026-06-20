@@ -237,7 +237,14 @@ Investigate deeply.
 	defer cleanupWorkspace(t, researchWorkspace)
 
 	cfg := testCfg([]config.AgentConfig{
-		{ID: "main", Default: true, Workspace: mainWorkspace},
+		{
+			ID:        "main",
+			Default:   true,
+			Workspace: mainWorkspace,
+			Subagents: &config.SubagentsConfig{
+				DenyAgents: []string{"research"},
+			},
+		},
 		{ID: "research", Workspace: researchWorkspace},
 	})
 	cfg.Tools.ReadFile.Enabled = true
