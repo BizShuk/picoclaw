@@ -162,6 +162,13 @@ make integration-test
 
 ## 變更紀錄 (Changelog)
 
+### 2026-06-20 — 倉庫下移為 submodule + agent 編排層抽離
+
+- 本 repo 下移一層,成為 `m-agent` superproject 的 git submodule(路徑 `picoclaw/`)。本 repo 自身內容不變,僅在外層多一層分發/代理層。
+- remote 改名(fork 慣例):`origin`(原 sipeed)→ `upstream`(追上游用);`bizshuk`(你的 fork)→ `origin`(push 用)。
+- 編排/測試/資料等 customized 資產上移到 m-agent,本 repo 移除:`docker/docker-compose.agent.yml`、`docker/docker-compose.app.yml`、`docker/entrypoint-agent.sh`、`docker/README.md`、`scripts/a2a-test/`、`agents/`(原即 gitignored)。
+- 分界判準:`gateway` / `launcher` / `agent` 的 build 定義(`docker/Dockerfile.*`)與 Go source 屬引擎 code logic → 留本 repo;部署編排(compose / entrypoint)、測試 harness、agent 資料 → 上移 m-agent。m-agent 的 compose 以 `context: ../picoclaw` 引用本 repo 做 build。
+
 ### 2026-06-19 — A2A 跨 agent + Docker MiniMax agent
 
 - `pkg/channels/a2a/`：新增 A2A channel(mDNS 廣播/探索、WS peer 協定、`POST /a2a/v1/ask` 同步 HTTP 入口)。
