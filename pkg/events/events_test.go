@@ -252,3 +252,22 @@ func closeBus(t *testing.T, bus *EventBus) {
 		t.Fatalf("Close failed: %v", err)
 	}
 }
+
+func TestA2AEventKinds(t *testing.T) {
+	cases := []struct {
+		kind Kind
+		want string
+	}{
+		{KindA2APeerDiscovered, "a2a.peer.discovered"},
+		{KindA2APeerLost, "a2a.peer.lost"},
+		{KindA2AAskStart, "a2a.ask.start"},
+		{KindA2AAskComplete, "a2a.ask.complete"},
+		{KindA2AAskError, "a2a.ask.error"},
+		{KindA2AMaxTurnExceeded, "a2a.max_turn.exceeded"},
+	}
+	for _, c := range cases {
+		if string(c.kind) != c.want {
+			t.Errorf("kind = %q, want %q", c.kind, c.want)
+		}
+	}
+}

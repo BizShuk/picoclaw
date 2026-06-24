@@ -103,6 +103,14 @@ const (
 	KindMCPToolCallStart Kind = "mcp.tool.call.start"
 	// KindMCPToolCallEnd is emitted when an MCP tool call ends.
 	KindMCPToolCallEnd Kind = "mcp.tool.call.end"
+
+	// A2A channel event kinds.
+	KindA2APeerDiscovered  Kind = "a2a.peer.discovered"
+	KindA2APeerLost        Kind = "a2a.peer.lost"
+	KindA2AAskStart        Kind = "a2a.ask.start"
+	KindA2AAskComplete     Kind = "a2a.ask.complete"
+	KindA2AAskError        Kind = "a2a.ask.error"
+	KindA2AMaxTurnExceeded Kind = "a2a.max_turn.exceeded"
 )
 
 var knownKinds = []Kind{
@@ -152,6 +160,12 @@ var knownKinds = []Kind{
 	KindMCPToolDiscovered,
 	KindMCPToolCallStart,
 	KindMCPToolCallEnd,
+	KindA2APeerDiscovered,
+	KindA2APeerLost,
+	KindA2AAskStart,
+	KindA2AAskComplete,
+	KindA2AAskError,
+	KindA2AMaxTurnExceeded,
 }
 
 // KnownKinds returns the runtime event kinds declared by this package.

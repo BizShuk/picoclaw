@@ -3238,3 +3238,4 @@ func testChannelsConfigWithTokens() ChannelsConfig {
 	}
 	return channels
 }
+

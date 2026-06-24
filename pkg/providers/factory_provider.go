@@ -243,8 +243,10 @@ func CreateProviderFromConfig(cfg *config.ModelConfig) (LLMProvider, string, err
 			cfg.CustomHeaders,
 		), modelID, cfg)
 
-	case "minimax":
-		// Minimax requires reasoning_split: true in the request body
+	case "minimax", "minimax-i18n":
+		// Minimax requires reasoning_split: true in the request body.
+		// API key resolution from sentinel ("MINIMAX_API_KEY") to process
+		// env happens inside ModelConfig.APIKey() in pkg/config.
 		if cfg.APIKey() == "" && cfg.APIBase == "" {
 			return nil, "", fmt.Errorf("api_key or api_base is required for HTTP-based protocol %q", protocol)
 		}

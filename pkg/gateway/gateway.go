@@ -19,6 +19,7 @@ import (
 	"github.com/sipeed/picoclaw/pkg/audio/tts"
 	"github.com/sipeed/picoclaw/pkg/bus"
 	"github.com/sipeed/picoclaw/pkg/channels"
+	_ "github.com/sipeed/picoclaw/pkg/channels/a2a"
 	_ "github.com/sipeed/picoclaw/pkg/channels/dingtalk"
 	_ "github.com/sipeed/picoclaw/pkg/channels/discord"
 	_ "github.com/sipeed/picoclaw/pkg/channels/feishu"
@@ -425,6 +426,15 @@ func setupAndStartServices(
 	agentLoop.SetChannelManager(runningServices.ChannelManager)
 	agentLoop.SetMediaStore(runningServices.MediaStore)
 
+	// Inject agent registry to registry-aware channels (e.g. A2A)
+	for _, chName := range runningServices.ChannelManager.GetEnabledChannels() {
+		if concreteCh, ok := runningServices.ChannelManager.GetChannel(chName); ok {
+			if awareCh, ok := concreteCh.(interface{ SetAgentRegistry(r *agent.AgentRegistry) }); ok {
+				awareCh.SetAgentRegistry(agentLoop.GetRegistry())
+			}
+		}
+	}
+
 	transcriber := asr.DetectTranscriber(cfg)
 	if transcriber != nil {
 		agentLoop.SetTranscriber(transcriber)
@@ -667,6 +677,15 @@ func restartServices(
 		return fmt.Errorf("error reload channels: %w", err)
 	}
 	fmt.Println("  ✓ Channels restarted.")
+
+	// Inject agent registry on reload
+	for _, chName := range runningServices.ChannelManager.GetEnabledChannels() {
+		if concreteCh, ok := runningServices.ChannelManager.GetChannel(chName); ok {
+			if awareCh, ok := concreteCh.(interface{ SetAgentRegistry(r *agent.AgentRegistry) }); ok {
+				awareCh.SetAgentRegistry(al.GetRegistry())
+			}
+		}
+	}
 
 	enabledChannels := runningServices.ChannelManager.GetEnabledChannels()
 	if len(enabledChannels) > 0 {

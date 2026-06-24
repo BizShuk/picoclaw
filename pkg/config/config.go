@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
-
 	"github.com/sipeed/picoclaw/pkg"
 	"github.com/sipeed/picoclaw/pkg/fileutil"
 	"github.com/sipeed/picoclaw/pkg/logger"
@@ -322,8 +321,13 @@ type AgentConfig struct {
 }
 
 type SubagentsConfig struct {
-	AllowAgents []string          `json:"allow_agents,omitempty"`
-	Model       *AgentModelConfig `json:"model,omitempty"`
+	// AllowAgents, when non-empty, restricts spawning to the listed agent IDs
+	// (or "*"). When empty, spawning is allowed by default (see DenyAgents).
+	AllowAgents []string `json:"allow_agents,omitempty"`
+	// DenyAgents blocks spawning the listed agent IDs (or "*"). Deny takes
+	// precedence over allow and over the default-allow policy.
+	DenyAgents []string          `json:"deny_agents,omitempty"`
+	Model      *AgentModelConfig `json:"model,omitempty"`
 }
 
 type DispatchConfig struct {
@@ -795,14 +799,6 @@ type ModelConfig struct {
 	// isVirtual marks this model as a virtual model generated from multi-key expansion.
 	// Virtual models should not be persisted to config files.
 	isVirtual bool
-}
-
-// APIKey returns the first API key from apiKeys
-func (c *ModelConfig) APIKey() string {
-	if len(c.APIKeys) > 0 {
-		return c.APIKeys[0].String()
-	}
-	return ""
 }
 
 // IsVirtual returns true if this model was generated from multi-key expansion.

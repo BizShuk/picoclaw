@@ -1,0 +1,59 @@
+# ============================================================
+# Dockerfile.gateway — gateway service image
+#   Builds 2 binaries: picoclaw + picoclaw-launcher
+#   Runtime: alpine + 2 binaries (no Node/Python/uv toolchain)
+#   Used by: picoclaw-gateway in docker-compose.agent.yml (profile: local/gateway)
+#   For toolchain-rich agent image: see Dockerfile.agent
+#   For CLI-only / full-MCP variants: see Dockerfile / Dockerfile.full
+#   For webui-only launcher: see Dockerfile.launcher
+# ============================================================
+
+# Stage 1: Build frontend assets (for picoclaw-launcher webui embed)
+FROM node:24-alpine3.23 AS frontend
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+WORKDIR /src/web/frontend
+COPY web/frontend/package.json web/frontend/pnpm-lock.yaml ./
+RUN CI=true pnpm install --frozen-lockfile
+COPY web/frontend/ ./
+RUN pnpm build:backend
+
+# Stage 2: Build all three Go binaries
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=frontend /src/web/backend/dist web/backend/dist
+
+# picoclaw (CLI / gateway subcommand)
+RUN make build
+
+# picoclaw-launcher (webui + gateway; needs frontend dist + ldflags)
+RUN CONFIG_PKG=github.com/sipeed/picoclaw/pkg/config && \
+    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev) && \
+    GIT_COMMIT=$(git rev-parse --short=8 HEAD 2>/dev/null || echo dev) && \
+    BUILD_TIME=$(date +%FT%T%z) && \
+    GO_VERSION=$(go env GOVERSION) && \
+    CGO_ENABLED=0 go build -v -tags goolm,stdjson \
+      -ldflags "-X ${CONFIG_PKG}.Version=${VERSION} -X ${CONFIG_PKG}.GitCommit=${GIT_COMMIT} -X ${CONFIG_PKG}.BuildTime=${BUILD_TIME} -X ${CONFIG_PKG}.GoVersion=${GO_VERSION} -s -w" \
+      -o build/picoclaw-launcher ./web/backend/
+
+# Stage 3: Minimal alpine runtime with 2 binaries (no toolchain)
+FROM alpine:3.23
+
+RUN apk add --no-cache ca-certificates tzdata curl
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:18790/health || exit 1
+
+COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
+COPY --from=builder /src/build/picoclaw-launcher /usr/local/bin/picoclaw-launcher
+
+# Create ~/.picoclaw skeleton
+RUN /usr/local/bin/picoclaw onboard
+
+EXPOSE 18790
+ENTRYPOINT ["picoclaw-launcher"]
+CMD ["-console", "-public", "-no-browser"]

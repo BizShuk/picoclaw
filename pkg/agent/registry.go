@@ -15,6 +15,7 @@ import (
 type AgentRegistry struct {
 	cfg      *config.Config
 	agents   map[string]*AgentInstance
+	remotes  map[string]*RemoteAgentDescriptor
 	resolver *routing.RouteResolver
 	mu       sync.RWMutex
 }
@@ -27,6 +28,7 @@ func NewAgentRegistry(
 	registry := &AgentRegistry{
 		cfg:      cfg,
 		agents:   make(map[string]*AgentInstance),
+		remotes:  make(map[string]*RemoteAgentDescriptor),
 		resolver: routing.NewRouteResolver(cfg),
 	}
 
@@ -122,19 +124,36 @@ func (r *AgentRegistry) CanSpawnSubagent(parentAgentID, targetAgentID string) bo
 	return agentAllowsSubagent(parent, routing.NormalizeAgentID(targetAgentID))
 }
 
+// agentAllowsSubagent applies the spawn policy: allow by default, deny only when
+// explicitly listed. An explicit AllowAgents list, when set, narrows spawning to
+// its members; DenyAgents always wins. With no subagents config, spawning is
+// permitted (the agent-approval flow is the intended human-in-the-loop gate; see
+// docs/backlog.md).
 func agentAllowsSubagent(parent *AgentInstance, targetNorm string) bool {
-	if parent == nil || parent.Subagents == nil || parent.Subagents.AllowAgents == nil {
+	if parent == nil || parent.Subagents == nil {
+		return true
+	}
+	sub := parent.Subagents
+
+	// Explicit deny takes precedence over everything else.
+	for _, denied := range sub.DenyAgents {
+		if denied == "*" || routing.NormalizeAgentID(denied) == targetNorm {
+			return false
+		}
+	}
+
+	// An explicit allowlist, when provided, restricts spawning to its members.
+	if len(sub.AllowAgents) > 0 {
+		for _, allowed := range sub.AllowAgents {
+			if allowed == "*" || routing.NormalizeAgentID(allowed) == targetNorm {
+				return true
+			}
+		}
 		return false
 	}
-	for _, allowed := range parent.Subagents.AllowAgents {
-		if allowed == "*" {
-			return true
-		}
-		if routing.NormalizeAgentID(allowed) == targetNorm {
-			return true
-		}
-	}
-	return false
+
+	// No allowlist configured: allow by default.
+	return true
 }
 
 func agentHasSpawnTool(agent *AgentInstance) bool {
