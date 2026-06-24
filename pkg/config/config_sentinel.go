@@ -7,7 +7,8 @@ import "github.com/spf13/viper"
 // here when their config template uses a placeholder that should be
 // resolved from process env at runtime.
 var apiKeySentinelToEnv = map[string]string{
-	"MINIMAX_API_KEY": "MINIMAX_API_KEY",
+	"MINIMAX_API_KEY":   "MINIMAX_API_KEY",
+	"ANTHROPIC_API_KEY": "ANTHROPIC_API_KEY",
 }
 
 func init() {
