@@ -1,6 +1,9 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"github.com/bizshuk/gosdk/config"
+	"github.com/spf13/viper"
+)
 
 // apiKeySentinelToEnv maps a sentinel literal string in api_keys[] to the
 // env var name to read when the sentinel is encountered. Add new providers
@@ -12,15 +15,17 @@ var apiKeySentinelToEnv = map[string]string{
 }
 
 func init() {
-	// Enable viper to read from process env without per-call BindEnv.
-	// This makes ModelConfig.APIKey()'s sentinel resolution work as long
-	// as the host shell / docker compose injects the env var.
-	viper.AutomaticEnv()
+	// Initialize gosdk config with appName="picoclaw". This loads .env,
+	// .env.local, config.yaml, and settings.json from the standard search
+	// paths into viper's global store (set automatically by gosdk).
+	// After that, viper.AutomaticEnv() is already active, so all
+	// ModelConfig.APIKey() sentinel lookups resolve via viper.GetString().
+	config.Default(config.WithAppName("picoclaw"))
 }
 
 // APIKey returns the first API key from apiKeys, resolving sentinels via
-// viper (process env). If the literal value is a known sentinel (see
-// apiKeySentinelToEnv), the corresponding env var is read; if the env var
+// viper (process env + .env file). If the literal value is a known sentinel
+// (see apiKeySentinelToEnv), the corresponding env var is read; if the env var
 // is unset, the sentinel is returned (caller surfaces a clear 401).
 func (c *ModelConfig) APIKey() string {
 	if len(c.APIKeys) == 0 {
