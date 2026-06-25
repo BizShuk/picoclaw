@@ -1483,13 +1483,16 @@ func LoadConfig(path string) (*Config, error) {
 			return nil, fmt.Errorf("failed to load security config: %w", err)
 		}
 
-		// Load A2A Agent Card sidecar (optional; missing/malformed is non-fatal)
-		if err := loadAgentCard(cfg, agentCardPath(path)); err != nil {
-			return nil, fmt.Errorf("failed to load agent card: %w", err)
-		}
-
 	default:
 		return nil, fmt.Errorf("unsupported config version: %d", versionInfo.Version)
+	}
+
+	// Load A2A Agent Card sidecar (optional; missing/malformed is non-fatal).
+	// Placed AFTER the switch so it runs for both direct CurrentVersion
+	// loads and in-memory migration paths (cases 0/1/2 which set cfg and
+	// fall through to the end of the switch block).
+	if err := loadAgentCard(cfg, agentCardPath(path)); err != nil {
+		return nil, fmt.Errorf("failed to load agent card: %w", err)
 	}
 
 	applyLegacyBindingsMigration(data, cfg)
