@@ -1,0 +1,27 @@
+{
+  "_comment": "Google A2A v0.3.0 Agent Card (https://a2a-protocol.org). Served by picoclaw at GET /.well-known/agent.json. NOTE: `url`, `protocolVersion` and `preferredTransport` are injected at runtime by picoclaw (ApplyRuntime) — values here are placeholders/hints. Operator-authored fields: `name`, `description`, `version`, `skills` (and optionally provider/capabilities/auth).",
+  "name": "PicoClaw Agent",
+  "description": "Describe what this agent can do for other A2A agents. Used by A2A clients for routing.",
+  "version": "0.1.0",
+  "protocolVersion": "0.3.0",
+  "url": "http://localhost:8080/a2a/v1/ask",
+  "preferredTransport": "HTTP+JSON",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "ask",
+      "name": "Ask",
+      "description": "Send a natural-language question to this agent and receive an answer.",
+      "tags": ["q-and-a"],
+      "examples": ["What can you do?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    }
+  ]
+}

@@ -49,6 +49,8 @@ func newWSServer(addr string, ch *A2AChannel) *wsServer {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/a2a/v1/ws", s.serveHTTP)
 	mux.HandleFunc("/a2a/v1/ask", s.serveHTTPAsk)
+	mux.HandleFunc("/.well-known/agent.json", s.serveAgentCard)
+	mux.HandleFunc("/.well-known/agent-card.json", s.serveAgentCard)
 	s.httpSrv = &http.Server{
 		Addr:    addr,
 		Handler: mux,
@@ -235,4 +237,32 @@ func (s *wsServer) sendError(ctx context.Context, w *peerWriter, replyTo, code, 
 		},
 	}
 	_ = w.WriteFrame(ctx, env)
+}
+
+// serveAgentCard serves the Google A2A Agent Card at the well-known URL.
+// GET only (405 otherwise); returns 404 when no card is configured. The
+// card's runtime fields (url, protocolVersion, preferredTransport) are
+// injected via ApplyRuntime using the channel's advertised host:port, so
+// the static values in agent.json for those fields are ignored on the wire.
+func (s *wsServer) serveAgentCard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.ch.card == nil {
+		http.Error(w, "no agent card configured", http.StatusNotFound)
+		return
+	}
+	ips := advertiseIPs(s.ch.cfg.BindAddr)
+	host := "localhost"
+	if len(ips) > 0 {
+		host = ips[0].String()
+	}
+	body, err := json.MarshalIndent(s.ch.card.ApplyRuntime(host, s.ch.port), "", "  ")
+	if err != nil {
+		http.Error(w, "failed to encode agent card", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(body)
 }

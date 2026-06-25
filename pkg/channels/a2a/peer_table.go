@@ -13,6 +13,7 @@ type PeerInfo struct {
 	Version     int
 	WSPath      string
 	Description string
+	CardURL     string `json:"card_url,omitempty"`
 	LastSeen    time.Time
 }
 
@@ -43,6 +44,7 @@ func (pt *peerTable) Upsert(p *PeerInfo) {
 		existing.Port = p.Port
 		existing.Version = p.Version
 		existing.WSPath = p.WSPath
+		existing.CardURL = p.CardURL
 		existing.LastSeen = now
 		pt.mu.Unlock()
 		return

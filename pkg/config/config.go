@@ -50,6 +50,11 @@ type Config struct {
 	// BuildInfo contains build-time version information
 	BuildInfo BuildInfo `json:"build_info,omitempty" yaml:"-"`
 
+	// AgentCard is the optional Google A2A Agent Card loaded from the
+	// agent.json sidecar next to the config file. Not serialized into
+	// config.json.
+	AgentCard *AgentCard `json:"-" yaml:"-"`
+
 	// cache for sensitive values and compiled regex (computed once)
 	sensitiveCache *SensitiveDataCache
 }
@@ -1476,6 +1481,11 @@ func LoadConfig(path string) (*Config, error) {
 		err = loadSecurityConfig(cfg, secPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("failed to load security config: %w", err)
+		}
+
+		// Load A2A Agent Card sidecar (optional; missing/malformed is non-fatal)
+		if err := loadAgentCard(cfg, agentCardPath(path)); err != nil {
+			return nil, fmt.Errorf("failed to load agent card: %w", err)
 		}
 
 	default:

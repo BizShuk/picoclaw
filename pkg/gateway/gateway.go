@@ -435,6 +435,15 @@ func setupAndStartServices(
 		}
 	}
 
+	// Inject A2A Agent Card to card-aware channels (e.g. A2A)
+	for _, chName := range runningServices.ChannelManager.GetEnabledChannels() {
+		if concreteCh, ok := runningServices.ChannelManager.GetChannel(chName); ok {
+			if awareCh, ok := concreteCh.(interface{ SetAgentCard(card *config.AgentCard) }); ok {
+				awareCh.SetAgentCard(cfg.AgentCard)
+			}
+		}
+	}
+
 	transcriber := asr.DetectTranscriber(cfg)
 	if transcriber != nil {
 		agentLoop.SetTranscriber(transcriber)
@@ -683,6 +692,16 @@ func restartServices(
 		if concreteCh, ok := runningServices.ChannelManager.GetChannel(chName); ok {
 			if awareCh, ok := concreteCh.(interface{ SetAgentRegistry(r *agent.AgentRegistry) }); ok {
 				awareCh.SetAgentRegistry(al.GetRegistry())
+			}
+		}
+	}
+
+	// Inject A2A Agent Card on reload (channels are recreated, so the new
+	// channel is card-less until this runs)
+	for _, chName := range runningServices.ChannelManager.GetEnabledChannels() {
+		if concreteCh, ok := runningServices.ChannelManager.GetChannel(chName); ok {
+			if awareCh, ok := concreteCh.(interface{ SetAgentCard(card *config.AgentCard) }); ok {
+				awareCh.SetAgentCard(cfg.AgentCard)
 			}
 		}
 	}

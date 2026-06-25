@@ -37,6 +37,7 @@ func (d *discovery) Start() error {
 		"path=/a2a/v1/ws",
 		"agent=" + d.ch.agentID,
 		"desc=" + desc,
+		"card=" + d.cardURL(),
 	}
 
 	// 2. Announce mDNS service
@@ -94,6 +95,19 @@ func (d *discovery) Stop() {
 	if d.server != nil {
 		_ = d.server.Shutdown()
 	}
+}
+
+// cardURL returns the well-known Agent Card URL advertised in mDNS, built
+// from the channel's advertised host and resolved port. Always emitted
+// (even when no card is configured) so peers can probe the endpoint and get
+// a clean 404. Runs after server.Start resolves d.ch.port.
+func (d *discovery) cardURL() string {
+	ips := advertiseIPs(d.ch.cfg.BindAddr)
+	host := "localhost"
+	if len(ips) > 0 {
+		host = ips[0].String()
+	}
+	return fmt.Sprintf("http://%s:%d/.well-known/agent.json", host, d.ch.port)
 }
 
 func (d *discovery) browseLoop() {
@@ -168,6 +182,7 @@ func (d *discovery) handleEntry(entry *mdns.ServiceEntry) {
 	var version int
 	wsPath := "/a2a/v1/ws"
 	desc := ""
+	cardURL := ""
 	for _, txt := range entry.InfoFields {
 		if strings.HasPrefix(txt, "v=") {
 			_, _ = fmt.Sscanf(txt, "v=%d", &version)
@@ -175,6 +190,8 @@ func (d *discovery) handleEntry(entry *mdns.ServiceEntry) {
 			wsPath = strings.TrimPrefix(txt, "path=")
 		} else if strings.HasPrefix(txt, "desc=") {
 			desc = strings.TrimPrefix(txt, "desc=")
+		} else if strings.HasPrefix(txt, "card=") {
+			cardURL = strings.TrimPrefix(txt, "card=")
 		}
 	}
 
@@ -195,6 +212,7 @@ func (d *discovery) handleEntry(entry *mdns.ServiceEntry) {
 		Version:     version,
 		WSPath:      wsPath,
 		Description: desc,
+		CardURL:     cardURL,
 		LastSeen:    time.Now(),
 	}
 

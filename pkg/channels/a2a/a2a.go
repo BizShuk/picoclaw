@@ -32,6 +32,7 @@ type A2AChannel struct {
 	routes   *sessionRouteTable
 
 	bridge *registryBridge
+	card   *config.AgentCard
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -40,6 +41,12 @@ type A2AChannel struct {
 // RegistryAware interface is used by the gateway to inject the agent registry into the channel.
 type RegistryAware interface {
 	SetAgentRegistry(r *agent.AgentRegistry)
+}
+
+// CardAware interface is used by the gateway to inject the A2A Agent Card
+// into the channel (mirrors RegistryAware).
+type CardAware interface {
+	SetAgentCard(card *config.AgentCard)
 }
 
 func NewA2AChannel(
@@ -81,6 +88,11 @@ func (c *A2AChannel) SetAgentRegistry(r *agent.AgentRegistry) {
 	c.bridge = &registryBridge{registry: r, ch: c}
 	c.peers.onAdd = c.bridge.onPeerAdded
 	c.peers.onRemove = c.bridge.onPeerRemoved
+}
+
+// SetAgentCard injects the A2A Agent Card loaded from the agent.json sidecar.
+func (c *A2AChannel) SetAgentCard(card *config.AgentCard) {
+	c.card = card
 }
 
 func (c *A2AChannel) Start(ctx context.Context) error {
