@@ -379,7 +379,7 @@ Questo crea `~/.picoclaw/config.json` e la directory workspace.
 }
 ```
 
-> Vedi `config/config.example.json` nel repo per un template di configurazione completo con tutte le opzioni disponibili.
+> Vedi `config/example/settings.example.json` nel repo per un template di configurazione completo con tutte le opzioni disponibili.
 
 **3. Chatta**
 

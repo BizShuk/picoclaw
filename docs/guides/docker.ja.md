@@ -156,7 +156,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - AI Agent 向けに最適化 (1000 requests/month)
   * DuckDuckGo - 組み込みフォールバック（API Key 不要）
 
-> **注意**: 完全な設定テンプレートは `config.example.json` を参照してください。
+> **注意**: 完全な設定テンプレートは `config/example/settings.example.json` を参照してください。
 
 **4. チャット**
 

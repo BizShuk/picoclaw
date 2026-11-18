@@ -374,7 +374,7 @@ Ini mencipta `~/.picoclaw/config.json` dan direktori ruang kerja.
 }
 ```
 
-> Lihat `config/config.example.json` dalam repo untuk templat konfigurasi lengkap. Nota: kunci API kini disimpan dalam `.security.yml`, bukan `config.json`.
+> Lihat `config/example/settings.example.json` dalam repo untuk templat konfigurasi lengkap. Nota: kunci API kini disimpan dalam `.security.yml`, bukan `config.json`.
 
 **3. Sembang**
 

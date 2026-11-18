@@ -380,7 +380,7 @@ picoclaw onboard
 }
 ```
 
-> 利用可能なすべてのオプションを含む完全な設定テンプレートは、リポジトリの `config/config.example.json` を参照してください。
+> 利用可能なすべてのオプションを含む完全な設定テンプレートは、リポジトリの `config/example/settings.example.json` を参照してください。
 
 **3. チャット**
 

@@ -380,7 +380,7 @@ Lệnh này tạo `~/.picoclaw/config.json` và thư mục workspace.
 }
 ```
 
-> Xem `config/config.example.json` trong repo để có mẫu cấu hình đầy đủ với tất cả các tùy chọn có sẵn.
+> Xem `config/example/settings.example.json` trong repo để có mẫu cấu hình đầy đủ với tất cả các tùy chọn có sẵn.
 
 **3. Trò chuyện**
 

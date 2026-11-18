@@ -154,7 +154,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - Tối ưu cho AI Agent (1000 yêu cầu/tháng)
   * DuckDuckGo - Fallback tích hợp (không cần API key)
 
-> **Lưu ý**: Xem `config.example.json` để có mẫu cấu hình đầy đủ.
+> **Lưu ý**: Xem `config/example/settings.example.json` để có mẫu cấu hình đầy đủ.
 
 **4. Chat**
 

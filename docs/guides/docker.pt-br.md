@@ -154,7 +154,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - Otimizado para agentes de IA (1000 requisições/mês)
   * DuckDuckGo - Fallback integrado (sem necessidade de chave de API)
 
-> **Nota**: Veja `config.example.json` para um modelo de configuração completo.
+> **Nota**: Veja `config/example/settings.example.json` para um modelo de configuração completo.
 
 **4. Conversar**
 

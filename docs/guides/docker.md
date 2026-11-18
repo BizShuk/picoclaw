@@ -160,7 +160,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - Optimized for AI Agents (1000 requests/month)
   * DuckDuckGo - Built-in fallback (no API key required)
 
-> **Note**: See `config.example.json` for a complete configuration template.
+> **Note**: See `config/example/settings.example.json` for a complete configuration template.
 
 **4. Chat**
 

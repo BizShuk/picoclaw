@@ -1305,17 +1305,17 @@ func TestDefaultConfig_WebProviderIsAuto(t *testing.T) {
 }
 
 func TestConfigExample_WebProviderIsAuto(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "config", "config.example.json"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "config", "example", "settings.example.json"))
 	if err != nil {
-		t.Fatalf("ReadFile(config.example.json) error: %v", err)
+		t.Fatalf("ReadFile(settings.example.json) error: %v", err)
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		t.Fatalf("Unmarshal(config.example.json) error: %v", err)
+		t.Fatalf("Unmarshal(settings.example.json) error: %v", err)
 	}
 	if cfg.Tools.Web.Provider != "auto" {
-		t.Fatalf("config.example.json tools.web.provider = %q, want auto", cfg.Tools.Web.Provider)
+		t.Fatalf("settings.example.json tools.web.provider = %q, want auto", cfg.Tools.Web.Provider)
 	}
 }
 
@@ -3238,4 +3238,3 @@ func testChannelsConfigWithTokens() ChannelsConfig {
 	}
 	return channels
 }
-

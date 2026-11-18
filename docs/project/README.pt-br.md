@@ -380,7 +380,7 @@ Isso cria `~/.picoclaw/config.json` e o diretório workspace.
 }
 ```
 
-> Veja `config/config.example.json` no repositório para um template de configuração completo com todas as opções disponíveis.
+> Veja `config/example/settings.example.json` no repositório para um template de configuração completo com todas as opções disponíveis.
 
 **3. Conversar**
 

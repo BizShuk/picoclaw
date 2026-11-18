@@ -378,7 +378,7 @@ picoclaw onboard
 }
 ```
 
-> 사용 가능한 모든 옵션이 포함된 전체 설정 템플릿은 저장소의 `config/config.example.json`을 참고하세요.
+> 사용 가능한 모든 옵션이 포함된 전체 설정 템플릿은 저장소의 `config/example/settings.example.json`을 참고하세요.
 >
 > 참고: `config.example.json` 형식은 버전 0이며 민감 정보가 포함되어 있습니다. 실행 시 자동으로 버전 1+로 마이그레이션되며, 이후 `config.json`에는 비민감 정보만 저장되고 민감 정보는 `.security.yml`에 저장됩니다. 민감 정보를 직접 수정해야 한다면 `../security/security_configuration.md`를 참고하세요.
 

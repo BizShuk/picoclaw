@@ -153,7 +153,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - Dioptimumkan untuk AI Agents (1000 permintaan/bulan)
   * DuckDuckGo - Fallback terbina dalam (tidak memerlukan API key)
 
-> **Nota**: Lihat `config.example.json` untuk templat konfigurasi penuh.
+> **Nota**: Lihat `config/example/settings.example.json` untuk templat konfigurasi penuh.
 
 **4. Sembang**
 

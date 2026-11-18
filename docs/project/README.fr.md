@@ -383,7 +383,7 @@ Cela crée `~/.picoclaw/config.json` et le répertoire workspace.
 }
 ```
 
-> Voir `config/config.example.json` dans le dépôt pour un modèle de configuration complet avec toutes les options disponibles.
+> Voir `config/example/settings.example.json` dans le dépôt pour un modèle de configuration complet avec toutes les options disponibles.
 
 **3. Chatter**
 

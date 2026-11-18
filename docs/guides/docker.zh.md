@@ -159,7 +159,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - 专为 AI Agent 优化 (1000 请求/月)
   * DuckDuckGo - 内置回退（无需 API Key）
 
-> **注意**: 完整的配置模板请参考 `config.example.json`。
+> **注意**: 完整的配置模板请参考 `config/example/settings.example.json`。
 
 **4. 对话 (Chat)**
 

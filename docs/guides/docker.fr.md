@@ -154,7 +154,7 @@ picoclaw onboard
   * [Tavily](https://tavily.com) - Optimisé pour les agents IA (1000 requêtes/mois)
   * DuckDuckGo - Solution de repli intégrée (pas de clé API requise)
 
-> **Note** : Voir `config.example.json` pour un modèle de configuration complet.
+> **Note** : Voir `config/example/settings.example.json` pour un modèle de configuration complet.
 
 **4. Discuter**
 

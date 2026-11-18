@@ -82,7 +82,7 @@ flowchart LR
   - reload:`gateway.go:681-688`(reload 會重建 channel,新 channel `card==nil` 直到此 loop 跑,**必須**在 reload loop 也注入)。
   - `cfg` 在兩處皆 in scope。
 
-### NEW `picoclaw/config/agent.example.json`
+### NEW `picoclaw/config/example/agent.example.json`
 - 最小合法 v0.3.0 card(all req + 1 skill),role 同 `config.example.json`(schema demo + 作為 per-agent 模板來源)。頂部放 `_comment` 說明 `url` 會被 runtime override。
 
 ### NEW tests

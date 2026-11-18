@@ -393,7 +393,7 @@ This creates `~/.picoclaw/config.json` and the workspace directory.
 }
 ```
 
-> See `config/config.example.json` in the repo for a complete configuration template with all available options.
+> See `config/example/settings.example.json` in the repo for a complete configuration template with all available options.
 >
 > Please note: config.example.json format is version 0, with sensitive codes in it, and will be auto migrated to version 1+, then, the config.json will only store insensitive data, the sensitive codes will be stored in .security.yml, if you need manually modify the codes, please see `docs/security/security_configuration.md` for more details.
 

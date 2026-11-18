@@ -380,7 +380,7 @@ picoclaw onboard
 }
 ```
 
-> 完整配置模板请参阅仓库中的 `config/config.example.json`。
+> 完整配置模板请参阅仓库中的 `config/example/settings.example.json`。
 
 **3. 开始聊天**
 
